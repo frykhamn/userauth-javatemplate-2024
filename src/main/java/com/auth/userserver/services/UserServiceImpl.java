@@ -17,13 +17,15 @@ import java.util.stream.Collectors;
 
 @Service
 public class UserServiceImpl implements UserService {
+
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+
     @Autowired
-    private UserRepository userRepository;
-
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
+    public UserServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
     public UserDto registerUser(UserRegisterRequest userRegisterRequest) {
         if (isUserExists(userRegisterRequest.getUsername())) {
             throw new UserAlreadyExistsException("User with name "

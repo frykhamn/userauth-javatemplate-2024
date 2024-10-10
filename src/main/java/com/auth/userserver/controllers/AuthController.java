@@ -1,21 +1,18 @@
 package com.auth.userserver.controllers;
-
-
-import com.auth.userserver.dto.LoginRequest;
-import com.auth.userserver.dto.UserDto;
-import com.auth.userserver.dto.UserRegisterRequest;
-import com.auth.userserver.dto.UserResponse;
-import com.auth.userserver.entities.User;
+import com.auth.userserver.dto.*;
 import com.auth.userserver.exceptions.UserAlreadyExistsException;
 import com.auth.userserver.exceptions.UserRegistrationException;
-import com.auth.userserver.security.CustomUserDetailsServiceImpl;
+import com.auth.userserver.security.CustomUserDetails;
 import com.auth.userserver.security.JwtUtil;
 import com.auth.userserver.services.UserService;
+import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.*;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,17 +21,16 @@ import java.util.List;
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
-    @Autowired
-    private AuthenticationManager authenticationManager;
+    private final AuthenticationManager authenticationManager;
+    private final JwtUtil jwtUtil;
+    private final UserService userService;
 
     @Autowired
-    private JwtUtil jwtUtil;
-
-    @Autowired
-    private CustomUserDetailsServiceImpl userDetailsService;
-
-    @Autowired
-    private UserService userService;
+    public AuthController(AuthenticationManager authenticationManager, JwtUtil jwtUtil, UserService userService) {
+        this.authenticationManager = authenticationManager;
+        this.jwtUtil = jwtUtil;
+        this.userService = userService;
+    }
 
     @GetMapping("/users")
     public ResponseEntity<List<UserDto>> getAllUsers() {
@@ -43,27 +39,21 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) throws Exception {
-        try {
-            authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(
-                            loginRequest.getUsername(), loginRequest.getPassword()
-                    )
-            );
-        } catch (DisabledException e) {
-            throw new Exception("User is disabled", e);
-        } catch (LockedException e) {
-            throw new Exception("User account is locked", e);
-        } catch (BadCredentialsException e) {
-            throw new Exception("Incorrect username or password", e);
-        }
+    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        loginRequest.getUsername(), loginRequest.getPassword())
+        );
 
-        final UserDetails userDetails = userDetailsService
-                .loadUserByUsername(loginRequest.getUsername());
-        final String jwt = jwtUtil.generateToken(userDetails);
+        SecurityContextHolder.getContext().setAuthentication(authentication);
 
-        return ResponseEntity.ok(jwt);
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+
+        String jwt = jwtUtil.generateToken(userDetails);
+
+        return ResponseEntity.ok(new JwtResponse(jwt));
     }
+
 
     @PostMapping("/register")
     public ResponseEntity<UserResponse> registerUser(@Validated @RequestBody UserRegisterRequest request) {
@@ -76,6 +66,7 @@ public class AuthController {
 
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
+
 
     // Exception Handlers
     @ExceptionHandler(UserAlreadyExistsException.class)
@@ -95,4 +86,7 @@ public class AuthController {
 
         return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
     }
+
 }
+
+

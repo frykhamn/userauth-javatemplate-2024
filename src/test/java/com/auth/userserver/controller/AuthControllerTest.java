@@ -1,8 +1,10 @@
 package com.auth.userserver.controller;
 
 import com.auth.userserver.controllers.AuthController;
+import com.auth.userserver.dto.JwtResponse;
 import com.auth.userserver.dto.LoginRequest;
-import com.auth.userserver.security.CustomUserDetailsServiceImpl;
+import com.auth.userserver.dto.UserRegisterRequest;
+import com.auth.userserver.security.CustomUserDetails;
 import com.auth.userserver.security.JwtUtil;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -12,9 +14,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.Authentication;
 import org.springframework.http.ResponseEntity;
-
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -25,12 +26,10 @@ class AuthControllerTest {
     private AuthenticationManager authenticationManager;
 
     @Mock
-    private CustomUserDetailsServiceImpl userDetailsService;
-    @Mock
     private JwtUtil jwtUtil;
 
     @InjectMocks
-    private AuthController authController; // Anta att detta är din controller
+    private AuthController authController;
 
     @Test
     void testLoginSuccess() throws Exception {
@@ -39,12 +38,18 @@ class AuthControllerTest {
         loginRequest.setUsername("testuser");
         loginRequest.setPassword("password123");
 
-        UserDetails mockUserDetails = mock(UserDetails.class);
+        // Mocka CustomUserDetails
+        CustomUserDetails mockUserDetails = mock(CustomUserDetails.class);
 
-        // Mocka authenticationManager och userDetailsService
+        // Mocka Authentication-objektet
+        Authentication authentication = mock(Authentication.class);
+        when(authentication.getPrincipal()).thenReturn(mockUserDetails);
+
+        // Mocka authenticationManager
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
-                .thenReturn(null); // Inga undantag betyder att autentiseringen lyckades
-        when(userDetailsService.loadUserByUsername("testuser")).thenReturn(mockUserDetails);
+                .thenReturn(authentication);
+
+        // Mocka jwtUtil.generateToken()
         when(jwtUtil.generateToken(mockUserDetails)).thenReturn("mock-jwt-token");
 
         // When: Kör login-metoden
@@ -52,7 +57,10 @@ class AuthControllerTest {
 
         // Then: Kontrollera att JWT-token returnerades
         assertEquals(200, response.getStatusCodeValue());
-        assertEquals("mock-jwt-token", response.getBody());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody() instanceof JwtResponse);
+        JwtResponse jwtResponse = (JwtResponse) response.getBody();
+        assertEquals("mock-jwt-token", jwtResponse.getToken());
     }
 
     @Test
@@ -67,10 +75,43 @@ class AuthControllerTest {
                 .thenThrow(new BadCredentialsException("Incorrect username or password"));
 
         // When & Then: Kontrollera att rätt undantag kastas
-        Exception exception = assertThrows(Exception.class, () -> {
+        BadCredentialsException exception = assertThrows(BadCredentialsException.class, () -> {
             authController.login(loginRequest);
         });
 
-        assertTrue(exception.getMessage().contains("Incorrect username or password"));
+        assertEquals("Incorrect username or password", exception.getMessage());
+    }
+
+
+    @Test
+    void testRegistrationSuccess(){
+        // Given: Mocka indata
+        UserRegisterRequest userRegisterRequest = new UserRegisterRequest();
+        userRegisterRequest.setUsername("testuser");
+        userRegisterRequest.setPassword("password123");
+
+        // Mocka CustomUserDetails
+        CustomUserDetails mockUserDetails = mock(CustomUserDetails.class);
+
+        // Mocka Authentication-objektet
+        Authentication authentication = mock(Authentication.class);
+        when(authentication.getPrincipal()).thenReturn(mockUserDetails);
+
+        // Mocka authenticationManager
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                .thenReturn(authentication);
+
+        // Mocka jwtUtil.generateToken()
+        when(jwtUtil.generateToken(mockUserDetails)).thenReturn("mock-jwt-token");
+
+        // When: Kör login-metoden
+        ResponseEntity<?> response = authController.login(new LoginRequest());
+
+        // Then: Kontrollera att JWT-token returnerades
+        assertEquals(200, response.getStatusCodeValue());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody() instanceof JwtResponse);
+        JwtResponse jwtResponse = (JwtResponse) response.getBody();
+        assertEquals("mock-jwt-token", jwtResponse.getToken());
     }
 }

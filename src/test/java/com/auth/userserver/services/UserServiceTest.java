@@ -7,19 +7,22 @@ import com.auth.userserver.enums.UserRole;
 import com.auth.userserver.exceptions.UserAlreadyExistsException;
 import com.auth.userserver.exceptions.UserRegistrationException;
 import com.auth.userserver.repositories.UserRepository;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.*;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-class UserServiceImplTest {
+class UserServiceTest {
 
     @Mock
     private UserRepository userRepository;
@@ -138,7 +141,7 @@ class UserServiceImplTest {
         when(userRepository.findAll()).thenReturn(users);
 
         // Act
-        List<User> result = userServiceImpl.getUsers();
+        List<UserDto> result = userServiceImpl.getUsers();
 
         // Assert
         assertNotNull(result);

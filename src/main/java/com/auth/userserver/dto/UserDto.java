@@ -8,8 +8,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class UserDto {
 
+    private String publicId;
     private String username;
-    private String password;
     private String email;
     private String firstName;
     private String lastName;
@@ -17,6 +17,7 @@ public class UserDto {
     private Enum userRole;
 
     public UserDto(User user) {
+        this.publicId = user.getPublicId();
         this.username = user.getUsername();
         this.email = user.getEmail();
         this.firstName = user.getFirstName();
